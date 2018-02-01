@@ -1,0 +1,55 @@
+Writeup
+
+Pset 3
+Ethan Hartzell 
+
+1. Preprocessing:
+
+This part is simple. I create an empty set for the vocabulary. I loop through the corpora and keep a set of everything that has occured once. If it occurs again, it goes in the vocab set. 
+Then, I loop through each sentence adding (start, start) to the beginning and (end,end) to the end. I check if each token is in the vocabulary. If not, it is replaced with UNK but keeps its tag.
+
+2. Baseline:
+To compute baseline accuracy, I loop through the corpus and keep counts of each occurence of a token with a tag. Then I loop through the set again, constructing a new one as I go. For each token, I assign the tag that has the highest count for that word. Then I return the tagged set.
+
+This tagged set is given as input along with the gold standard set to another function. This function loops through both copies of the corpus and tests for equality between each sentence and each token, keeping a count of how many are equal (and therefore correctly tagged). 2 is subtracted from totals to account for the start end tokens, which would imply an optimistic accuracy. Finally, we divide correct sentences and tags by total sentences and tags, and multiply by 100 to obtain a percent value.
+
+I got sentence accuracy of 6.67396061269 percent and tag accuracy of 85.0937124919 percent.
+
+3. Training:
+To do the training, we loop through the training set and keep track of the last token's tag. We take counts of each tag, tag-tag pair, and word-tag pair. We also keep a dictionary which holds the set of each tag a given token can take on. Then to estimate the transitions matrix, we loop through the dictionary of tag-tag counts and divide each value by the tag count of the previous tag. Actually, we do laplace smoothing and have +1 in the numerator and +V in the denominator.
+Then for the emissions matrix we loop through the word-tag counts and divide by the tag counts.
+
+To compute the percent ambiguous, we loop through the given set and count the number of total tokens and the number of tokens which can take on more than one tag, as shown in the self.dictionary dict. We subtract two from each sentence to account for start and end tokens so that our final value isn't optimistic. We divide the number of ambiguous tokens by the number of total tokens and multiply by 100 to get a percent value. When we run the test set through, we get the value 42.82%. 
+
+To find the joint probability of a sentence, we loop through each token and add the log probabilities from the transition matrix of the current and last tag and the emission matrix from the current token and tag. We return the exp() of this sum. We get the value 1.82012963185e-49 for the first sentence of the test set.
+
+4. Testing:
+
+To implement viterbi, we keep a dictionary to represent the path probability matrix, called viterbi, with keys as states and values as log probabilities. We also keep a dictionary of backpointers, with keys as states and values as states. We initialize the dictionaries by creating states for every possible tag given the first observation after the start token. These states compute the their joint probabilities given the start token. Next, we loop through every possible tag for every observation given the input sentence and look at each state at the previous observation. We add joint probabilities at the current state given each previous state to a dictionary. We find the maximum and assign that to our current state, and find the previous state it came from and assign that to our backpointers dictionary. Next we traverse our dictionary of backpointers to assign the tags to the words. Finally, we return our new tagged sentence.
+
+To test our tagger, we run each sentence of the test set through viterbi, constructing our tagged corpus. Then we run this through the compute accuracy function. We get the following values:
+Percent sentence accuracy: 14.113785558
+Percent tag accuracy: 89.4007940172
+
+5. Extra Credit:
+
+I wrote a function called Confusion to compute a confusion matrix which keeps a count of each tag that is confused for another one. The dictionary holds confused tag pairs for keys with counts for values. When we run the program, we print the most confused pair and the number of times they were confused.
+
+Output before any improvements:
+
+<S> <UNK> Vinken , 61 years old , will join the board as a nonexecutive director Nov. 29 . </S>
+<S> At Tokyo , the <UNK> index of <UNK> <UNK> issues , which gained <UNK> points Tuesday , added <UNK> points to <UNK> . </S>
+--- Most common class baseline accuracy ---
+Percent sentence accuracy: 6.67396061269
+Percent tag accuracy: 85.0937124919
+Percent tag ambiguity in training set is 42.82%.
+Joint probability of the first sentence is 1.82012963185e-49.
+--- Bigram HMM accuracy ---
+Percent sentence accuracy: 14.113785558
+Percent tag accuracy: 89.4007940172
+160.0
+(u'NN', u'JJ')
+
+By printing wrongly the tagged tokens, it's clear that most of the wrong ones are UNK tokens. 
+From printing the confusion matrix we can see that 124 JJs were mistaken for NNPs. To reduce this number, I kept probabilities of tags given that the token is capitalized. Adding this probability to emissions probabilities results in a reduction to 21 confusions, but a tag accuracy of 84.2581479088%. When I weight the probability by multiplying it by 0.5, we get 33 confusions and 87.1480011079% tag accuracy. 
+When I weight it 0.2 and weight the emissions probability 0.8 I get 73.0 confusions and 89.1238112824 % tag accuracy and the most confused types become NN and NNP. There is no clean way to treat these confusions without hurting the overall performance within an HMM model. In my final implementation the capitalization probabiliies' addition to emissions will be commented out in the Train method.
